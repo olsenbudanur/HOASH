@@ -5,18 +5,24 @@ import base64
 from gpiozero import LED
 from signal import pause
 from gpiozero import Button
+import random
 
 green_led = LED(4)
 red_led = LED(17)
 button = Button(16)
 
-positive = ['Happy', 'Neutral', 'Surprise']
-negative = ['Angry', 'Disgust', 'Fear', 'Sad']
+positive = ['HAPPY', 'SURPRISED', 'CALM']
+negative = ['ANGRY', 'CONFUSED', 'SCARED', 'SAD']
+
+emotions = ['HAPPY', 'SURPRISED', 'CALM', 'ANGRY', 'CONFUSED', 'SCARED', 'SAD']
+points = [0]
 
 picam2 = Picamera2()
 camera_config = picam2.create_still_configuration(main={"size": (1920, 1080)}, lores={"size": (640, 480)}, display="lores")
 picam2.configure(camera_config)
 picam2.start()
+
+random_emotions = [random.choice(emotions)]
 
 def takePicture():
     time.sleep(1)
@@ -28,35 +34,87 @@ def seeEmotion():
         green_led.off()
         red_led.off()
         return
-    
+    print("----------------------------------")
     print("Taking a picture..")
     takePicture()
 
     print("Took picture, sending it to the api")
+    print("----------------------------------")
+    print("")
 
     with open("test.jpg", "rb") as image_file: 
         encoded_string = base64.b64encode(image_file.read()).decode("utf8")
 
-    api_call = requests.post("https://api.server.cameralyze.co/endpoint/1a7ad4bd-7824-4224-86b0-cae222e8889e", json={"apiKey": "PnlVAL9X9dkvQ9ur", "image": encoded_string})
-    response = api_call.json() 
-
-    print("Got the api response: ")
-    print(response)
 
     
-    emotion = response['data']['detections'][0]['name']
-    print("The emotion detected is:")
-    print(emotion)
+    # api_call = requests.post("https://api.server.cameralyze.co/flow/1a7ad4bd-7824-4224-86b0-cae222e8889e", json={"apiKey": "PnlVAL9X9dkvQ9ur", "image": encoded_string})
+    # api_call = requests.post("https://api.server.cameralyze.co/endpoint/1a7ad4bd-7824-4224-86b0-cae222e8889e", json={"apiKey": "PnlVAL9X9dkvQ9ur", "image": encoded_string})
+    # print(api_call)
+    # response = api_call.json() 
 
-    if emotion in positive:
-        green_led.on()
-    elif emotion in negative:
+    # print("Got the api response: ")
+    # print(response)
+    # emotion = response['data']['detections'][0]['name']
+
+    api_call = requests.post("https://api.server.cameralyze.co/model/b66919e1-d92d-4e82-80d7-1b36ccaa29fb", json={"apiKey": "PnlVAL9X9dkvQ9ur", "image": encoded_string})
+    response = api_call.json() 
+
+
+    try:
+        emotion = response['data']['data'][0][5]
+        print("----------------------------------")
+        print("The emotion detected was:")
+        print(emotion)
+
+        if emotion == random_emotions[0]:
+            print("You showed the correct emotion!") 
+            points[0] = points[0] + 1
+            green_led.on()
+        else:
+            print("You showed the incorrect emotion!") 
+            red_led.on()
+
+        
+        # if emotion in positive:
+        #     green_led.on()
+        # elif emotion in negative:
+        #     red_led.on()
+        # else:
+        #     green_led.on()
+        #     red_led.on()
+    except Exception as e:
+        print("There was a problem finding your face.")
         red_led.on()
-    else:
-        green_led.on()
-        red_led.on()
+    
+    
+    
+    print("----------------------------------")
+    print("")
+
+    random_emotions[0] = random.choice(emotions)
+
+    print("----------------------------------")
+
+    print("Try to show the following emotion: ")
+    print(random_emotions[0])
 
 
+    print("Points earned so far: ")
+    print(points[0])
+    print("----------------------------------")
+    print("")
+
+
+
+print("----------------------------------")
+print("Try to show the following emotion: ")
+print(random_emotions[0])
+
+
+print("Points earned so far: ")
+print(points[0])
+print("----------------------------------")
+print("")
 
 button.when_pressed = seeEmotion
 
